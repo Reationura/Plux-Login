@@ -177,7 +177,8 @@ public class PluxLogin extends JavaPlugin {
 
     public void executeKickCommands(String playerName) {
         for (String cmd : configManager.getKickCommands()) {
-            String formattedCmd = cmd.replace("{player}", playerName);
+            // 同时支持 {player} 与 %player% 两种占位符写法
+            String formattedCmd = cmd.replace("{player}", playerName).replace("%player%", playerName);
             getServer().dispatchCommand((CommandSender) getServer().getConsoleSender(), formattedCmd);
         }
     }
@@ -217,26 +218,6 @@ public class PluxLogin extends JavaPlugin {
         if (bannedUntil == null) return "0";
         long remaining = (bannedUntil - System.currentTimeMillis()) / 1000L;
         return remaining > 0L ? String.valueOf(remaining) : "0";
-    }
-
-    /**
-     * 检测快速加入，5秒内多次加入则临时封禁1分钟
-     */
-    public boolean checkFastJoin(UUID uuid) {
-        long now = System.currentTimeMillis();
-        Long lastJoin = joinTimestamps.get(uuid);
-        if (lastJoin != null && now - lastJoin < 5000L) {
-            int count = fastJoinCount.merge(uuid, 1, Integer::sum);
-            if (count >= 6) {
-                tempBannedUntil.put(uuid, now + 60000L);
-                fastJoinCount.remove(uuid);
-                return true;
-            }
-            return false;
-        }
-        joinTimestamps.put(uuid, now);
-        fastJoinCount.put(uuid, 1);
-        return false;
     }
 
     public Long getJoinTimestamp(UUID uuid) { return joinTimestamps.get(uuid); }

@@ -115,6 +115,10 @@ public class CommandHandler implements CommandExecutor {
 
         // 验证密码
         PlayerData data = plugin.getDatabaseManager().getPlayerData(uuid);
+        if (data == null) {
+            player.sendMessage(prefix() + plugin.getConfigManager().getErrorDatabaseErrorMessage());
+            return true;
+        }
         if (!Utils.verifyPassword(args[0], data.getPasswordHash())) {
             int wrongCount = plugin.getWrongPasswordCount(uuid) + 1;
             int maxWrong = plugin.getConfigManager().getMaxWrongPassword();
@@ -152,12 +156,8 @@ public class CommandHandler implements CommandExecutor {
         sendSuccessTitle(player);
         plugin.getConfigManager().executeWelcomeActions(player);
 
-        // 异步检查更新通知
-        plugin.getServer().getScheduler().runTaskAsynchronously((Plugin) plugin, () -> {
-            String currentVersion = plugin.getVersion();
-            String latestVersion = plugin.getUpdateChecker().fetchLatestVersion();
-            plugin.getUpdateChecker().notifyAdminOnLogin(player, currentVersion, latestVersion);
-        });
+        // 使用后台定时检查缓存的最新版本通知管理员，避免每次登录都发起网络请求
+        plugin.getUpdateChecker().notifyAdminOnLogin(player, plugin.getVersion(), plugin.getUpdateChecker().getLatestVersion());
     }
 
     // ========== 注册 ==========
@@ -245,17 +245,26 @@ public class CommandHandler implements CommandExecutor {
             return true;
         }
 
-        // 验证成功，进入注册阶段
         session.setCaptchaVerified(true);
-        session.setState(PluxLogin.SessionState.REGISTER);
-        session.setRemainingTime(plugin.getConfigManager().getRegistrationTimeout());
         session.cancelTasks((org.bukkit.plugin.Plugin) plugin);
 
         PlayerListener listener = new PlayerListener(plugin);
-        listener.startTitleTask(player, session, PluxLogin.SessionState.REGISTER);
-        listener.startActionbarTask(player, session, PluxLogin.SessionState.REGISTER);
+        boolean registered = plugin.getDatabaseManager().isPlayerRegistered(player.getUniqueId());
 
-        player.sendMessage(prefix() + plugin.getConfigManager().getCaptchaSuccessMessage());
+        if (registered) {
+            session.setState(PluxLogin.SessionState.LOGIN);
+            session.setRemainingTime(plugin.getConfigManager().getLoginTimeout());
+            listener.startTitleTask(player, session, PluxLogin.SessionState.LOGIN);
+            listener.startActionbarTask(player, session, PluxLogin.SessionState.LOGIN);
+            player.sendMessage(prefix() + plugin.getConfigManager().getCaptchaSuccessMessage());
+            player.sendMessage(prefix() + plugin.getConfigManager().getLoginNeedLoginMessage());
+        } else {
+            session.setState(PluxLogin.SessionState.REGISTER);
+            session.setRemainingTime(plugin.getConfigManager().getRegistrationTimeout());
+            listener.startTitleTask(player, session, PluxLogin.SessionState.REGISTER);
+            listener.startActionbarTask(player, session, PluxLogin.SessionState.REGISTER);
+            player.sendMessage(prefix() + plugin.getConfigManager().getCaptchaSuccessMessage());
+        }
         return true;
     }
 
@@ -283,6 +292,10 @@ public class CommandHandler implements CommandExecutor {
         }
 
         PlayerData data = plugin.getDatabaseManager().getPlayerData(uuid);
+        if (data == null) {
+            player.sendMessage(prefix() + plugin.getConfigManager().getErrorDatabaseErrorMessage());
+            return true;
+        }
         if (data.getEmail() != null && !data.getEmail().isEmpty()) {
             player.sendMessage(prefix() + plugin.getConfigManager().getEmailAlreadyBoundMessage());
             return true;
@@ -376,6 +389,10 @@ public class CommandHandler implements CommandExecutor {
         }
 
         PlayerData data = plugin.getDatabaseManager().getPlayerData(uuid);
+        if (data == null) {
+            player.sendMessage(prefix() + plugin.getConfigManager().getErrorDatabaseErrorMessage());
+            return true;
+        }
         if (data.getQq() != null && !data.getQq().isEmpty()) {
             player.sendMessage(prefix() + plugin.getConfigManager().getQQAlreadyBoundMessage());
             return true;
@@ -515,6 +532,10 @@ public class CommandHandler implements CommandExecutor {
         }
 
         PlayerData data = plugin.getDatabaseManager().getPlayerData(uuid);
+        if (data == null) {
+            player.sendMessage(prefix() + plugin.getConfigManager().getErrorDatabaseErrorMessage());
+            return true;
+        }
         if (data.getEmail() == null || data.getEmail().isEmpty()) {
             player.sendMessage(prefix() + plugin.getConfigManager().getPasswordResetNoBindingMessage("邮箱"));
             return true;
@@ -544,6 +565,10 @@ public class CommandHandler implements CommandExecutor {
         }
 
         PlayerData data = plugin.getDatabaseManager().getPlayerData(uuid);
+        if (data == null) {
+            player.sendMessage(prefix() + plugin.getConfigManager().getErrorDatabaseErrorMessage());
+            return true;
+        }
         if (data.getQq() == null || data.getQq().isEmpty()) {
             player.sendMessage(prefix() + plugin.getConfigManager().getPasswordResetNoBindingMessage("QQ"));
             return true;
@@ -576,6 +601,10 @@ public class CommandHandler implements CommandExecutor {
         }
 
         PlayerData data = plugin.getDatabaseManager().getPlayerData(player.getUniqueId());
+        if (data == null) {
+            player.sendMessage(prefix() + plugin.getConfigManager().getErrorDatabaseErrorMessage());
+            return true;
+        }
         if (!Utils.verifyPassword(args[0], data.getPasswordHash())) {
             player.sendMessage(prefix() + plugin.getConfigManager().getChangePasswordWrongOldMessage());
             return true;
@@ -592,9 +621,9 @@ public class CommandHandler implements CommandExecutor {
         }
 
         boolean success = plugin.getDatabaseManager().updatePassword(player.getUniqueId(), Utils.hashPassword(args[1]));
-        player.sendMessage(prefix() + success
+        player.sendMessage(prefix() + (success
                 ? plugin.getConfigManager().getChangePasswordSuccessMessage()
-                : plugin.getConfigManager().getErrorDatabaseErrorMessage());
+                : plugin.getConfigManager().getErrorDatabaseErrorMessage()));
         return true;
     }
 
@@ -610,6 +639,10 @@ public class CommandHandler implements CommandExecutor {
         }
 
         PlayerData data = plugin.getDatabaseManager().getPlayerData(uuid);
+        if (data == null) {
+            player.sendMessage(prefix() + plugin.getConfigManager().getErrorDatabaseErrorMessage());
+            return true;
+        }
         if (data.getEmail() == null || !data.getEmail().equalsIgnoreCase(args[0])) {
             player.sendMessage(prefix() + plugin.getConfigManager().getChangeEmailWrongOldMessage());
             return true;
@@ -648,6 +681,10 @@ public class CommandHandler implements CommandExecutor {
         }
 
         PlayerData data = plugin.getDatabaseManager().getPlayerData(uuid);
+        if (data == null) {
+            player.sendMessage(prefix() + plugin.getConfigManager().getErrorDatabaseErrorMessage());
+            return true;
+        }
         if (data.getQq() == null || !data.getQq().equals(args[0])) {
             player.sendMessage(prefix() + plugin.getConfigManager().getChangeQQWrongOldMessage());
             return true;
@@ -689,6 +726,10 @@ public class CommandHandler implements CommandExecutor {
 
         UUID uuid = player.getUniqueId();
         PlayerData data = plugin.getDatabaseManager().getPlayerData(uuid);
+        if (data == null) {
+            player.sendMessage(prefix() + plugin.getConfigManager().getErrorDatabaseErrorMessage());
+            return true;
+        }
         String subCmd = args[0].toLowerCase();
 
         if ("on".equals(subCmd)) {
@@ -734,6 +775,11 @@ public class CommandHandler implements CommandExecutor {
         }
 
         PlayerData data = plugin.getDatabaseManager().getPlayerData(uuid);
+        if (data == null) {
+            plugin.removePendingTOTPVerification(uuid);
+            player.sendMessage(prefix() + plugin.getConfigManager().getErrorDatabaseErrorMessage());
+            return true;
+        }
         if (data.getTotpSecret() == null || data.getTotpSecret().isEmpty()) {
             plugin.removePendingTOTPVerification(uuid);
             player.sendMessage(prefix() + plugin.getConfigManager().getTotpNotEnabledMessage());

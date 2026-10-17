@@ -34,11 +34,22 @@ public class EmailManager {
 
         Properties props = new Properties();
         props.put("mail.smtp.auth", "true");
-        props.put("mail.smtp.starttls.enable", "true");
         props.put("mail.smtp.host", host);
         props.put("mail.smtp.port", String.valueOf(port));
         props.put("mail.smtp.connectiontimeout", "10000");
         props.put("mail.smtp.timeout", "15000");
+        props.put("mail.smtp.writetimeout", "15000");
+        if (port == 465) {
+            // 465 端口为隐式 SSL（SMTPS），与 config.yml 默认端口保持一致
+            props.put("mail.smtp.ssl.enable", "true");
+            props.put("mail.smtp.ssl.checkserveridentity", "true");
+            props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+            props.put("mail.smtp.socketFactory.port", String.valueOf(port));
+            props.put("mail.smtp.socketFactory.fallback", "false");
+        } else {
+            // 587 / 25 等端口使用 STARTTLS 由明文升级为加密
+            props.put("mail.smtp.starttls.enable", "true");
+        }
 
         mailSession = Session.getInstance(props, new Authenticator() {
             @Override
@@ -62,7 +73,7 @@ public class EmailManager {
      * 通用邮件发送方法
      */
     public boolean sendEmail(String to, String subject, String content) {
-        if (to == null || to.isEmpty() || !enabled) return false;
+        if (to == null || to.isEmpty() || !enabled || mailSession == null) return false;
         try {
             MimeMessage message = new MimeMessage(mailSession);
             message.setFrom(new InternetAddress(from));

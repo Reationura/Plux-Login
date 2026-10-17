@@ -241,7 +241,8 @@ public class ConfigManager {
     public String getMainCommandReloadSuccess() { return msg("main-command.reload-success"); }
     public String getMainCommandUpdateChecking() { return msg("main-command.update-checking"); }
     public String getMainCommandUpdateCheckComplete() { return msg("main-command.update-check-complete"); }
-    public String getMainCommandVersion() { return msg("main-command.version", "{version}", "UNKNOWN"); }
+    // 保留 {version} 占位符，由调用方（/pluxlogin version）传入真实版本号，避免被提前替换为 UNKNOWN
+    public String getMainCommandVersion() { return msg("main-command.version"); }
 
     // ========== TOTP 消息 ==========
 
@@ -300,8 +301,8 @@ public class ConfigManager {
 
     // ========== Title / Actionbar 配置 ==========
 
-    public boolean isTitleEnabled() { return config.getBoolean("titles.enabled", true); }
-    public int getTitleInterval() { return config.getInt("settings.title-interval", 20); }
+    public boolean isTitleEnabled() { return config.getBoolean("display.title.enabled", true); }
+    public int getTitleInterval() { return config.getInt("display.title.interval", 3); }
 
     public String getCaptchaTitle() { return Utils.translateColorCodes(config.getString("titles.captcha.title", "&e请输入验证码")); }
     public String getCaptchaSubtitle() { return Utils.translateColorCodes(config.getString("titles.captcha.subtitle", "&6使用 /captcha <验证码>")); }
@@ -329,35 +330,44 @@ public class ConfigManager {
     public boolean isLoginTitleEnabled() { return config.getBoolean("titles.login.enabled", true); }
     public boolean isLoginSuccessTitleEnabled() { return config.getBoolean("titles.login-success.enabled", true); }
     public boolean isRegisterSuccessTitleEnabled() { return config.getBoolean("titles.register-success.enabled", true); }
-    public boolean isActionbarEnabled() { return config.getBoolean("actionbar.enabled", true); }
-    public int getActionbarInterval() { return config.getInt("settings.actionbar-interval", 20); }
+    public boolean isActionbarEnabled() { return config.getBoolean("display.actionbar.enabled", true); }
+    public int getActionbarInterval() { return config.getInt("display.actionbar.interval", 1); }
     public int getTitleUpdateInterval() { return config.getInt("settings.title-update-interval", 20); }
     public int getLoginSuccessTitleDuration() { return config.getInt("settings.login-success-title-duration", 3); }
     public int getRegisterSuccessTitleDuration() { return config.getInt("settings.register-success-title-duration", 3); }
 
     // ========== 核心配置值 ==========
 
-    public int getLoginTimeout() { return config.getInt("login.timeout", 120); }
+    public int getLoginTimeout() { return config.getInt("timeouts.login", 300); }
     public int getAutoLoginDuration() { return config.getInt("login.auto-login-duration", 7200); }
-    public int getMaxWrongPassword() { return config.getInt("login.max-wrong-password", 5); }
-    public int getMaxKickCount() { return config.getInt("login.max-kick-count", 3); }
-    public List<String> getKickCommands() { return config.getStringList("login.kick-commands"); }
+    public int getMaxWrongPassword() { return config.getInt("security.max-wrong-password", 5); }
+    public int getMaxKickCount() { return config.getInt("security.max-kick-count", 3); }
+    public List<String> getKickCommands() {
+        // config.yml 使用单条字符串 security.kick-command，同时兼容列表写法
+        if (config.isList("security.kick-commands")) {
+            return config.getStringList("security.kick-commands");
+        }
+        String single = config.getString("security.kick-command", "");
+        List<String> list = new ArrayList<>();
+        if (single != null && !single.isEmpty()) list.add(single);
+        return list;
+    }
 
-    public int getRegistrationTimeout() { return config.getInt("registration.timeout", 120); }
-    public int getMaxPasswordLength() { return config.getInt("registration.max-password-length", 32); }
-    public int getMinPasswordLength() { return config.getInt("registration.min-password-length", 6); }
+    public int getRegistrationTimeout() { return config.getInt("timeouts.register", 300); }
+    public int getMaxPasswordLength() { return config.getInt("password.max-length", 32); }
+    public int getMinPasswordLength() { return config.getInt("password.min-length", 6); }
     public Pattern getPasswordPattern() {
-        String patternStr = config.getString("registration.password-pattern", "^[a-zA-Z0-9_-]{6,32}$");
+        String patternStr = config.getString("password.pattern", "^[a-zA-Z0-9_!@#$%^&*]+$");
         return Pattern.compile(patternStr);
     }
 
-    public int getCaptchaLength() { return config.getInt("captcha.length", 6); }
+    public int getCaptchaLength() { return config.getInt("captcha.length", 4); }
     public boolean isAlphaNumCaptcha() { return config.getBoolean("captcha.alpha-numeric", false); }
-    public int getCaptchaTimeout() { return config.getInt("captcha.validity-time", 300); }
+    public int getCaptchaTimeout() { return config.getInt("captcha.timeout", 120); }
 
-    public boolean isEmailEnabled() { return config.getBoolean("email.enabled", true); }
+    public boolean isEmailEnabled() { return config.getBoolean("email.enabled", false); }
     public String getEmailHost() { return config.getString("email.host", "smtp.qq.com"); }
-    public int getEmailPort() { return config.getInt("email.port", 587); }
+    public int getEmailPort() { return config.getInt("email.port", 465); }
     public String getEmailUsername() { return config.getString("email.username", ""); }
     public String getEmailPassword() { return config.getString("email.password", ""); }
     public String getEmailFrom() { return config.getString("email.from", "PluxLogin <noreply@example.com>"); }
@@ -376,8 +386,8 @@ public class ConfigManager {
     public int getTOTPCodeValidity() { return config.getInt("totp.code-validity", 300); }
     public int getTOTPCooldown() { return config.getInt("totp.cooldown", 60); }
 
-    public int getGlobalActionCooldown() { return config.getInt("global-action-cooldown", 30); }
-    public List<String> getAllowedCommands() { return config.getStringList("restrictions.allowed-commands"); }
+    public int getGlobalActionCooldown() { return config.getInt("security.action-cooldown", 5); }
+    public List<String> getAllowedCommands() { return config.getStringList("allowed-commands"); }
 
     // ========== 新增功能配置 ==========
 
@@ -509,7 +519,7 @@ public class ConfigManager {
     // ========== 验证码配置（补充）==========
 
     public boolean isCaptchaEnabled() { return config.getBoolean("captcha.enabled", true); }
-    public String getRegisterCaptchaMessage(String captcha) { return prefix() + msg("register.captcha-message", "{code}", captcha); }
+    public String getRegisterCaptchaMessage(String captcha) { return prefix() + msg("register.captcha-message", "{captcha}", captcha); }
 
     // ========== 注册消息补充 ==========
 
@@ -518,11 +528,12 @@ public class ConfigManager {
     // ========== Anti-Bot 配置 ==========
 
     public boolean isAntiBotEnabled() { return config.getBoolean("anti-bot.enabled", true); }
-    public long getAntiBotMinInterval() { return config.getLong("anti-bot.min-interval-ms", 1000L); }
-    public int getAntiBotMaxFastJoins() { return config.getInt("anti-bot.max-fast-joins", 5); }
-    public long getAntiBotTempBanDuration() { return config.getLong("anti-bot.temp-ban-duration-seconds", 60L); }
+    public long getAntiBotMinInterval() { return config.getLong("anti-bot.min-interval", 5000L); }
+    public int getAntiBotMaxFastJoins() { return config.getInt("anti-bot.max-fast-joins", 3); }
+    public long getAntiBotTempBanDuration() { return config.getLong("anti-bot.temp-ban-duration", 300L); }
     public String getAntiBotTempBanKickMessage(int remaining) {
-        return prefix() + msg("anti-bot.temp-ban-kick", "{time}", String.valueOf(remaining));
+        // message.yml 实际定义的是 login.temp-ban-kick（旧代码误读 anti-bot.temp-ban-kick，导致踢出消息为空）
+        return prefix() + msg("login.temp-ban-kick", "{time}", String.valueOf(remaining));
     }
 
     /** 取消当前欢迎动作任务 */

@@ -216,9 +216,15 @@ public class DatabaseManager {
     }
 
     public boolean deletePlayer(UUID uuid) {
-        String name = getPlayerNameByUUID(uuid);
-        if (name == null) return false;
-        return deletePlayer(name);
+        // 直接按 uuid 删除，避免因玩家改名后按 username 删除导致删错行或删不到
+        String sql = "DELETE FROM players WHERE uuid = ?";
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, uuid.toString());
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "按 UUID 删除玩家失败", e);
+            return false;
+        }
     }
 
     // ========== 综合查询 ==========

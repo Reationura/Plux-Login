@@ -1,5 +1,5 @@
 # ============================================================
-#  PluxLogin 配置文件 v2.1.0
+#  PluxLogin 配置文件 v2.0.2
 #  文档: https://docs.pluxlogin.com
 #  QQ群: xxxxxxxx
 # ============================================================
@@ -53,16 +53,16 @@ anti-bot:
   max-fast-joins: 3         # 最大快速加入次数
   temp-ban-duration: 300    # 临时封禁时长（秒）
 
-# 强制绑定邮箱（新功能 v2.1.0）
+# 强制绑定邮箱（v2.0.2 引入）
 force-email:
   enabled: false            # 是否强制未绑定邮箱的玩家在登录后立即绑定
   timeout: 120              # 绑定超时时间（秒），超时则踢出
 
-# GUI 管理界面（新功能 v2.1.0）
+# GUI 管理界面（v2.0.2 引入）
 gui:
   enabled: false            # 是否启用 GUI 管理界面 (/pluxlogin gui)
 
-# Web API 接口（新功能 v2.1.0）
+# Web API 接口（v2.0.2 引入）
 web-api:
   enabled: false            # 是否启用 Web API
   port: 8701                # API 监听端口
@@ -118,3 +118,7 @@ qq:
 # TOTP/2FA 配置
 totp:
   issuer: PluxLogin         # TOTP 发行者名称
+
+# 更新检查器
+update-checker:
+  enabled: true             # 是否自动检查新版本

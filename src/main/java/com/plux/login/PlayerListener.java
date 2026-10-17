@@ -162,8 +162,9 @@ public class PlayerListener implements Listener {
     // ========== 登录后处理（2FA + 强制邮箱）==========
 
     /**
-     * 此方法在 CommandHandler.completeLogin() 中被调用，
-     * 用于处理登录后的额外验证步骤
+     * 登录后的高级验证入口（预留）。
+     * 当前默认登录流程为保证稳定性不会在未完整实现的 2FA/强制邮箱门上拦截玩家，
+     * 因此本方法暂未接入 completeLogin()；保留以便后续版本完善 2FA / 强制邮箱登录门控时启用。
      */
     public void handlePostLogin(Player player, PluxLogin.PlayerSession session) {
         UUID uuid = player.getUniqueId();
@@ -242,9 +243,14 @@ public class PlayerListener implements Listener {
 
     public void startTitleTask(final Player player, final PluxLogin.PlayerSession session,
                                final PluxLogin.SessionState state) {
-        if (!plugin.getConfigManager().isTitleEnabled()) return;
+        final boolean titleEnabled = plugin.getConfigManager().isTitleEnabled();
+        if (!titleEnabled) {
+            scheduleTimeoutTask(player, session, state);
+            return;
+        }
 
-        int interval = plugin.getConfigManager().getTitleInterval();
+        final int[] lastTime = {Integer.MAX_VALUE};
+
         session.setTitleTaskId(plugin.getServer().getScheduler().scheduleSyncRepeatingTask(
                 (org.bukkit.plugin.Plugin) plugin, () -> {
                     try {
@@ -253,40 +259,74 @@ public class PlayerListener implements Listener {
                         if (current == null || current.getState() != state || current.isLoggedIn())
                             { session.cancelTasks((org.bukkit.plugin.Plugin) plugin); return; }
 
-                        String title, subtitle;
-                        switch (state) {
-                            case CAPTCHA:
-                                title = plugin.getConfigManager().getCaptchaTitle();
-                                subtitle = plugin.getConfigManager().getCaptchaSubtitle(session.getRemainingTime());
-                                break;
-                            case LOGIN:
-                                title = plugin.getConfigManager().getLoginTitle();
-                                subtitle = plugin.getConfigManager().getLoginSubtitle(session.getRemainingTime());
-                                break;
-                            case REGISTER:
-                                title = plugin.getConfigManager().getRegisterTitle();
-                                subtitle = plugin.getConfigManager().getRegisterSubtitle(session.getRemainingTime());
-                                break;
-                            case FORCE_EMAIL:
-                                title = "\u00a7c\u5fc3\u8d23\u7ed1\u5b9a";
-                                subtitle = "\u00a76\u8bf7\u4f7f\u7528 /mail <\u90ae\u7bb1> \u7ed1\u5b9a \u00a77\u5269\u4f59 " + session.getRemainingTime() + "s";
-                                break;
-                            case TOTP_VERIFY:
-                                title = "\u00a7e2FA \u9a8c\u8bc1";
-                                subtitle = "\u00a76\u8bf7\u4f7f\u7528 /2fac <\u7801> \u9a8c\u8bc1 \u00a77\u5269\u4f59 " + session.getRemainingTime() + "s";
-                                break;
-                            default: return;
+                        session.setRemainingTime(session.getRemainingTime() - 1);
+                        if (session.getRemainingTime() <= 0) {
+                            player.kickPlayer(plugin.getConfigManager().getRegisterTimeoutKickMessage());
+                            session.cancelTasks((org.bukkit.plugin.Plugin) plugin);
+                            return;
                         }
-                        plugin.getNMSAdapter().sendTitle(player, title, subtitle, 10, 30, 10);
+
+                        int currentTime = session.getRemainingTime();
+                        if (currentTime != lastTime[0]) {
+                            lastTime[0] = currentTime;
+                            String title, subtitle;
+                            switch (state) {
+                                case CAPTCHA:
+                                    title = plugin.getConfigManager().getCaptchaTitle();
+                                    subtitle = plugin.getConfigManager().getCaptchaSubtitle(currentTime);
+                                    break;
+                                case LOGIN:
+                                    title = plugin.getConfigManager().getLoginTitle();
+                                    subtitle = plugin.getConfigManager().getLoginSubtitle(currentTime);
+                                    break;
+                                case REGISTER:
+                                    title = plugin.getConfigManager().getRegisterTitle();
+                                    subtitle = plugin.getConfigManager().getRegisterSubtitle(currentTime);
+                                    break;
+                                case FORCE_EMAIL:
+                                    title = "\u00a7c\u5fc3\u8d23\u7ed1\u5b9a";
+                                    subtitle = "\u00a76\u8bf7\u4f7f\u7528 /mail <\u90ae\u7bb1> \u7ed1\u5b9a \u00a77\u5269\u4f59 " + currentTime + "s";
+                                    break;
+                                case TOTP_VERIFY:
+                                    title = "\u00a7e2FA \u9a8c\u8bc1";
+                                    subtitle = "\u00a76\u8bf7\u4f7f\u7528 /2fac <\u7801> \u9a8c\u8bc1 \u00a77\u5269\u4f59 " + currentTime + "s";
+                                    break;
+                                default: return;
+                            }
+                            plugin.getNMSAdapter().sendTitle(player, title, subtitle, 2, 6000, 2);
+                        }
                     } catch (Exception ignored) {}
-                }, interval * 20L, interval * 20L));
+                }, 0L, 20L));
+    }
+
+    private void scheduleTimeoutTask(final Player player, final PluxLogin.PlayerSession session,
+                                     final PluxLogin.SessionState state) {
+        session.setTitleTaskId(plugin.getServer().getScheduler().scheduleSyncRepeatingTask(
+                (org.bukkit.plugin.Plugin) plugin, () -> {
+                    try {
+                        if (!player.isOnline()) { session.cancelTasks((org.bukkit.plugin.Plugin) plugin); return; }
+                        PluxLogin.PlayerSession current = plugin.getPlayerSession(player.getUniqueId());
+                        if (current == null || current.getState() != state || current.isLoggedIn())
+                            { session.cancelTasks((org.bukkit.plugin.Plugin) plugin); return; }
+
+                        session.setRemainingTime(session.getRemainingTime() - 1);
+                        if (session.getRemainingTime() <= 0) {
+                            player.kickPlayer(plugin.getConfigManager().getRegisterTimeoutKickMessage());
+                            session.cancelTasks((org.bukkit.plugin.Plugin) plugin);
+                        }
+                    } catch (Exception ignored) {}
+                }, 0L, 20L));
     }
 
     public void startActionbarTask(final Player player, final PluxLogin.PlayerSession session,
                                    final PluxLogin.SessionState state) {
-        if (!plugin.getConfigManager().isActionbarEnabled()) return;
+        final boolean actionbarEnabled = plugin.getConfigManager().isActionbarEnabled();
+        if (!actionbarEnabled) return;
 
-        int interval = plugin.getConfigManager().getActionbarInterval();
+        final int interval = plugin.getConfigManager().getActionbarInterval();
+        final int sendInterval = interval * 20;
+        final int[] tickCounter = {0};
+
         session.setActionbarTaskId(plugin.getServer().getScheduler().scheduleSyncRepeatingTask(
                 (org.bukkit.plugin.Plugin) plugin, () -> {
                     try {
@@ -295,27 +335,29 @@ public class PlayerListener implements Listener {
                         if (current == null || current.getState() != state || current.isLoggedIn())
                             { session.cancelTasks((org.bukkit.plugin.Plugin) plugin); return; }
 
-                        String message;
-                        switch (state) {
-                            case CAPTCHA:
-                                message = plugin.getConfigManager().getCaptchaActionbar(session.getRemainingTime());
-                                break;
-                            case LOGIN:
-                                message = plugin.getConfigManager().getLoginActionbar(session.getRemainingTime());
-                                break;
-                            case REGISTER:
-                                message = plugin.getConfigManager().getRegisterActionbar(session.getRemainingTime());
-                                break;
-                            case FORCE_EMAIL:
-                                message = Utils.translateColorCodes("\u00a7c[\u5fc3\u8d23\u7ed1\u5b9a] \u00a76\u5269\u4f59: \u00a7a" + session.getRemainingTime() + "\u00a76s - \u00a7e/mail <\u90ae\u7bb1>");
-                                break;
-                            case TOTP_VERIFY:
-                                message = Utils.translateColorCodes("\u00a7e[2FA] \u00a76\u5269\u4f59: \u00a7a" + session.getRemainingTime() + "\u00a76s - \u00a7e/2fac <\u9a8c\u8bc1\u7801>");
-                                break;
-                            default: return;
+                        if (tickCounter[0]++ % sendInterval == 0) {
+                            String message;
+                            switch (state) {
+                                case CAPTCHA:
+                                    message = plugin.getConfigManager().getCaptchaActionbar(session.getRemainingTime());
+                                    break;
+                                case LOGIN:
+                                    message = plugin.getConfigManager().getLoginActionbar(session.getRemainingTime());
+                                    break;
+                                case REGISTER:
+                                    message = plugin.getConfigManager().getRegisterActionbar(session.getRemainingTime());
+                                    break;
+                                case FORCE_EMAIL:
+                                    message = Utils.translateColorCodes("\u00a7c[\u5fc3\u8d23\u7ed1\u5b9a] \u00a76\u5269\u4f59: \u00a7a" + session.getRemainingTime() + "\u00a76s - \u00a7e/mail <\u90ae\u7bb1>");
+                                    break;
+                                case TOTP_VERIFY:
+                                    message = Utils.translateColorCodes("\u00a7e[2FA] \u00a76\u5269\u4f59: \u00a7a" + session.getRemainingTime() + "\u00a76s - \u00a7e/2fac <\u9a8c\u8bc1\u7801>");
+                                    break;
+                                default: return;
+                            }
+                            plugin.getNMSAdapter().sendActionBar(player, message);
                         }
-                        plugin.getNMSAdapter().sendActionBar(player, message);
                     } catch (Exception ignored) {}
-                }, interval * 20L, interval * 20L));
+                }, 0L, 20L));
     }
 }
