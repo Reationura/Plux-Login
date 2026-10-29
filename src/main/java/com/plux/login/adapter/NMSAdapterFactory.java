@@ -4,7 +4,7 @@ import java.util.logging.Logger;
 
 public class NMSAdapterFactory {
 
-    private static NMSAdapter instance;
+    private static volatile NMSAdapter instance;
 
     public static NMSAdapter createAdapter(Logger logger) {
         if (instance != null) {
@@ -13,12 +13,23 @@ public class NMSAdapterFactory {
 
         VersionUtil.init();
 
-        if (VersionUtil.isBelow_1_8()) {
-            logger.info("[PluxLogin] Detected 1.7.x server, using NMS adapter for v1_7_R4");
-            instance = new NMSAdapter_v1_7_R4();
-        } else {
-            logger.info("[PluxLogin] Detected 1.8+ server, using modern adapter");
-            instance = new NMSAdapter_Modern();
+        Logger log = (logger != null) ? logger : Logger.getLogger("PluxLogin");
+        String mc = VersionUtil.getMcVersion();
+
+        synchronized (NMSAdapterFactory.class) {
+            if (instance != null) {
+                return instance;
+            }
+            if (VersionUtil.isBelow_1_8()) {
+                log.info("[PluxLogin] 检测到 1.7.x 服务端 (MC " + mc + ")，使用 v1_7_R4 NMS 反射适配器");
+                instance = new NMSAdapter_v1_7_R4();
+            } else {
+                // 1.8 ~ 26.3+ 统一使用纯 API 现代适配器，无需 NMS 反射，天然跨版本
+                log.info("[PluxLogin] 检测到 1.8+ 服务端 (MC " + mc + "，NMS "
+                        + (VersionUtil.isVersionedNms() ? VersionUtil.getNMSVersion() : "relocatable")
+                        + ")，使用现代 API 适配器");
+                instance = new NMSAdapter_Modern();
+            }
         }
 
         return instance;

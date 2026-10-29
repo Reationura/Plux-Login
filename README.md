@@ -1,8 +1,8 @@
 # PluxLogin
 
-> 高性能 Minecraft 登录注册插件 - 支持验证码/邮箱/QQ绑定/2FA/GUI/WebAPI | 兼容 1.7.10 ~ 26.1+
+> 高性能 Minecraft 登录注册插件 - 支持验证码/邮箱/QQ绑定/2FA/GUI/WebAPI | 兼容 1.7.10 ~ 26.3+
 
-![Version](https://img.shields.io/badge/version-2.1.0-orange)
+![Version](https://img.shields.io/badge/version-2.0.3-orange)
 ![Java](https://img.shields.io/badge/Java-8-blue)
 ![Folia](https://img.shields.io/badge/Folia-supported-green)
 
@@ -25,7 +25,7 @@
 
 ## 兼容版本
 
-- Minecraft 1.7.10 ~ 1.26.1+
+- Minecraft 1.7.10 ~ 26.3+
 - 支持 Folia 服务端
 - 支持 Spigot / Paper / Purpur 等主流服务端
 
@@ -208,9 +208,10 @@ PluxLogin/
 ## 开发者信息
 
 - **作者**: aya_xzer21145
+- **插件版本**: 2.0.3
 - **Java 版本**: 8+
 - **构建工具**: Maven
 
 ## 许可证
 
-MIT License 3.0
+本项目仅供学习交流使用。
