@@ -43,6 +43,12 @@ public final class ReflectionUtil {
      * @return 对应的 Class 对象，失败返回 null
      */
     public static Class<?> getNmsClass(String name) {
+        // 1.20.5+/26.x 的 CraftBukkit 已可重定位，不再有 net.minecraft.server.vX_Y_RZ 布局，
+        // 此时经典反射路径无效（现代适配器不使用反射，正常不会走到这里）
+        if (!VersionUtil.isVersionedNms()) {
+            warnUnversionedOnce("NMS:" + name);
+            return null;
+        }
         String fullName = "net.minecraft.server." + VersionUtil.getNMSVersion() + "." + name;
 
         Class<?> cached = CLASS_CACHE.get(fullName);
@@ -65,6 +71,10 @@ public final class ReflectionUtil {
      * @return 对应的 Class 对象
      */
     public static Class<?> getCraftbukkitClass(String name) {
+        if (!VersionUtil.isVersionedNms()) {
+            warnUnversionedOnce("CB:" + name);
+            return null;
+        }
         String fullName = "org.bukkit.craftbukkit." + VersionUtil.getNMSVersion() + "." + name;
 
         Class<?> cached = CLASS_CACHE.get(fullName);
@@ -264,6 +274,16 @@ public final class ReflectionUtil {
             connection = getFieldValue(entityPlayer, "connection"); // 1.17+ 字段名变更
         }
         return connection;
+    }
+
+    /** 无版本 NMS 布局下仅告警一次，避免刷屏 */
+    private static final java.util.Set<String> UNVERSIONED_WARNED =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    private static void warnUnversionedOnce(String tag) {
+        if (UNVERSIONED_WARNED.add(tag)) {
+            Bukkit.getLogger().fine("[PluxLogin] 当前服务端为可重定位 NMS（1.20.5+/26.x），经典反射不可用: " + tag);
+        }
     }
 
     // ========== 内部工具方法 ==========

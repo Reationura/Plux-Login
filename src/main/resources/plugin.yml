@@ -1,9 +1,9 @@
 name: PluxLogin
-version: '2.0.2'
+version: '2.0.3'
 main: com.plux.login.PluxLogin
 api-version: '1.13'
 author: aya_xzer21145
-description: 高性能登录注册插件 - 支持验证码/邮箱/QQ绑定/2FA/GUI/WebAPI | 兼容 1.7.10 ~ 26.1+
+description: 高性能登录注册插件 - 支持验证码/邮箱/QQ绑定/2FA/GUI/WebAPI | 兼容 1.7.10 ~ 26.3+
 folia-supported: true
 
 # 软依赖（缺失时自动降级，不影响插件加载）

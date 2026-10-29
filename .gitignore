@@ -1,0 +1,10 @@
+# ---- IDE / 编辑器 ----
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# ---- 构建产物 ----
+# 说明：远程 develop 历史已跟踪 target/，为保持与既有约定一致，这里不忽略 target/。
+# 如需停止跟踪构建产物，可执行：git rm -r --cached target
